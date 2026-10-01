@@ -1,0 +1,12 @@
+<div class="epatimoniu-graph-plugin" style="position:relative;width:100%;height:calc(100vh - 50px);min-height:480px;background:#f6f7f9;">
+  <!-- ko if: error -->
+  <div style="padding:24px;color:#991b1b;font:14px/1.4 system-ui,sans-serif;" data-bind="text: error"></div>
+  <!-- /ko -->
+  <!-- ko if: !error() && iframeSrc() -->
+  <iframe
+    title="ePatrimoniu Semantic Graph Viewer"
+    style="border:0;width:100%;height:100%;display:block;background:#f6f7f9;"
+    data-bind="attr: { src: iframeSrc }"
+  ></iframe>
+  <!-- /ko -->
+</div>

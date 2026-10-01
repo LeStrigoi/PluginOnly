@@ -1,0 +1,1 @@
+window.EPATRIMONIU_WORKSPACE = null;

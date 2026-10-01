@@ -1,0 +1,10 @@
+{
+  "pluginid": "a7c3e91f-4b2d-4e8a-9f15-6d8e2c1b0a47",
+  "name": "ePatrimoniu Graph Viewer",
+  "icon": "fa fa-share-alt",
+  "component": "views/components/plugins/epatimoniu-graph-viewer",
+  "componentname": "epatimoniu-graph-viewer",
+  "config": {},
+  "slug": "epatimoniu-graph-viewer",
+  "sortorder": 0
+}

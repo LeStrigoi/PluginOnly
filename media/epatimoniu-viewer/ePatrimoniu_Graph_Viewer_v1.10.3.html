@@ -1,0 +1,529 @@
+<!doctype html>
+<html lang="ro">
+<head>
+<base href="./">
+<script src="session-bootstrap.js"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ePatrimoniu Semantic Graph Viewer v1.10.3</title>
+<link rel="stylesheet" href="viewer.css">
+<script src="workspace-data.js"></script>
+<script src="arches-graph-client.js"></script>
+<script src="arches-live-bootstrap.js"></script>
+</head>
+<body>
+<header>
+  <div class="brand"><h1 id="title">ePatrimoniu Semantic Graph Viewer</h1><div class="meta" id="stats">v1.10.3 · collaboration foundation · read-only</div></div>
+  <div class="toolbar">
+    <div class="modeSwitch" title="Comută între ansamblul workspace-ului și graful selectat">
+      <button id="workspaceBtn" class="modeBtn">Workspace</button>
+      <button id="graphBtn" class="modeBtn">Graph</button>
+      <button id="patternsBtn" class="modeBtn">Patterns</button>
+      <button id="decisionsBtn" class="modeBtn">Decisions</button>
+      <button id="mappingsBtn" class="modeBtn">Mappings</button>
+      <button id="exportBtn" class="modeBtn exportMainBtn" title="Exportă vederea sau analiza curentă">Export</button>
+      <button id="moreBtn" class="modeBtn moreMainBtn" type="button" title="Instrumente" aria-label="Instrumente">⋯</button>
+    </div>
+    <label class="graphOnly" style="font-size:12px;color:#6b7280">Etichete</label>
+    <select id="labelMode" class="graphOnly"><option value="both">Arches + CIDOC</option><option value="arches">Doar Arches</option><option value="cidoc">Doar CIDOC</option></select>
+    <button id="groupsBtn" class="graphOnly active" title="Afișează NodeGroups Arches ca grupuri vizuale">NodeGroups</button>
+    <button id="focusBtn" class="graphOnly" title="Izolează nodul selectat și vecinii direcți">Focus</button>
+    <button id="compareBtn" class="graphOnly" title="Compară versiunea curentă cu un snapshot anterior">Compară versiuni</button>
+    <button id="decisionBtn" class="graphOnly" title="Editează decizia pentru Branch-ul sau NodeGroup-ul curent">Decizie</button>
+    <button id="mappingBtn" class="graphOnly" title="Mapează un câmp de formular la nodul selectat">Mapare câmp</button>
+    <button id="canonicalPatternBtn" class="graphOnly" title="Adaugă Branch-ul sau NodeGroup-ul curent în biblioteca canonică">Pattern canonic</button>
+    <button id="pathBtn" class="graphOnly" title="Alege două noduri și evidențiază cea mai scurtă cale semantică">Traseu semantic</button>
+    <button id="clearPathBtn" class="graphOnly" title="Șterge traseul semantic" style="display:none">Șterge traseu</button>
+    <button id="reloadBtn">Reîncarcă workspace</button>
+    <button id="openBtn" class="graphOnly">Deschide JSON</button>
+    <button id="fitBtn" class="graphOnly">Încadrează</button>
+  </div>
+
+  <div id="contextToolbar" class="contextToolbar">
+    <div id="graphContextTools" class="contextGroupRow">
+      <div class="toolGroup">
+        <div class="toolGroupLabel">Vizualizare</div>
+        <div class="toolGroupControls" id="visualToolsSlot"></div>
+      </div>
+      <div class="toolGroup">
+        <div class="toolGroupLabel">Analiză</div>
+        <div class="toolGroupControls" id="analysisToolsSlot"></div>
+      </div>
+      <div class="toolGroup">
+        <div class="toolGroupLabel">Canvas</div>
+        <div class="toolGroupControls" id="canvasToolsSlot"></div>
+      </div>
+    </div>
+
+    <div id="workspaceContextTools" class="contextModeText">
+      <span>Explorează Resource Models și Branches. Sync-ul și filtrarea sunt în panoul din stânga.</span>
+    </div>
+
+    <div id="patternsContextTools" class="contextGroupRow">
+      <div class="toolGroup">
+        <div class="toolGroupLabel">Patterns</div>
+        <div class="toolGroupControls">
+          <button id="patternAnalysisTab" class="patternSubtab active" type="button">Analiză</button>
+          <button id="patternLibraryTab" class="patternSubtab" type="button">Bibliotecă canonică</button>
+        </div>
+      </div>
+      <div class="toolGroup patternLibraryOnly">
+        <div class="toolGroupLabel">Library</div>
+        <div class="toolGroupControls"><button id="addCanonicalPatternBtn" type="button">Adaugă pattern</button><button id="runValidationBtn" type="button">Validare</button></div>
+      </div>
+    </div>
+
+    <div id="decisionsContextTools" class="contextGroupRow">
+      <div class="toolGroup">
+        <div class="toolGroupLabel">Decision Register</div>
+        <div class="toolGroupControls">
+          <span class="contextHint">Filtrează registrul și folosește Export pentru HTML / CSV.</span>
+        </div>
+      </div>
+    </div>
+
+    <div id="mappingsContextTools" class="contextGroupRow">
+      <div class="toolGroup">
+        <div class="toolGroupLabel">Mapping Registry</div>
+        <div class="toolGroupControls">
+          <button id="addMappingBtn" type="button">Adaugă câmp</button>
+          <span class="contextHint">Field ID → Pattern / Branch → Node → status → justificare</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div id="moreMenu" class="moreMenu" aria-hidden="true">
+  <div class="moreMenuTitle">Instrumente</div>
+  <div id="collabMenuMeta" class="collabMenuMeta">Colaborare locală · —</div>
+  <div id="moreMenuActions"><button id="collaborationBtn" type="button" class="moreMenuAction">Colaborare…</button></div>
+</div>
+
+<main>
+<aside id="library">
+  <div class="libraryHead">
+    <div class="libraryTitle"><strong>Modele Arches</strong></div>
+    <div class="leftSyncCard">
+      <div class="leftSyncHead">
+        <div>
+          <div class="leftSyncTitle">Sincronizare</div>
+          <div id="leftSyncMeta" class="leftSyncMeta">—</div>
+        </div>
+        <button id="leftSyncBtn" type="button" class="leftSyncBtn">Sync</button>
+      </div>
+      <div class="leftSyncScope" id="leftSyncScope">Scope: —</div>
+    </div>
+
+    <div class="modelSearchWrap"><input id="modelSearch" placeholder="Caută model / branch…"><button id="modelClear" type="button" title="Șterge căutarea" aria-label="Șterge căutarea">×</button></div>
+    <div class="tabs"><button class="tab active" data-filter="resource">Resource Models</button><button class="tab" data-filter="branch">Branches</button><button class="tab" data-filter="all">Toate</button></div>
+  </div>
+  <div id="modelList"></div>
+</aside>
+<section id="canvasWrap">
+  <button id="toggleLeftPanel" class="sidePanelToggle leftPanelToggle" title="Restrânge panoul stâng" aria-label="Restrânge panoul stâng">‹</button>
+  <button id="toggleRightPanel" class="sidePanelToggle rightPanelToggle" title="Restrânge panoul drept" aria-label="Restrânge panoul drept">›</button>
+
+
+<div id="graphQuickBar" class="graphQuickBar">
+    <div class="viewMenuWrap">
+      <button id="viewMenuBtn" type="button" class="graphQuickBtn">Vizualizare ▾</button>
+      <button id="actionsMenuBtn" type="button" class="graphQuickBtn" disabled>Acțiuni ▾</button>
+      <div id="viewMenuPopup" class="viewMenuPopup" aria-hidden="true">
+        <div class="viewMenuLabel">Etichete</div>
+        <div id="viewLabelSlot" class="viewMenuRow"></div>
+        <div class="viewMenuDivider"></div>
+        <div id="viewGroupsSlot" class="viewMenuRow"></div>
+        <div id="viewFitSlot" class="viewMenuRow"></div>
+      </div>
+    </div>
+    <div id="quickAnalysisSlot" class="quickAnalysisSlot"></div>
+  </div>
+
+  <div id="activeStateTray" class="activeStateTray" aria-live="polite"></div>
+
+  <div id="mappingsOverview">
+    <div class="mappingsTop">
+      <div>
+        <h2>Mapping Registry</h2>
+        <div class="mappingsSubtitle">Registrul de legătură dintre câmpurile formularelor ePatrimoniu și structurile semantice Arches/CIDOC CRM.</div>
+      </div>
+    </div>
+
+    <div id="mappingStats" class="mappingStats"></div>
+
+    <div class="mappingTools">
+      <input id="mappingSearch" type="text" placeholder="Caută Field ID, etichetă, formular, Pattern ID, clasă CRM sau justificare…">
+      <select id="mappingStatusFilter">
+        <option value="all">Toate statusurile</option>
+        <option value="unmapped">De mapat</option>
+        <option value="draft">Ciornă</option>
+        <option value="review">De verificat</option>
+        <option value="approved">Aprobat</option>
+        <option value="decide">De decis</option>
+        <option value="rejected">Respins</option>
+      </select>
+    </div>
+
+    <div id="mappingScroll" class="mappingScroll"></div>
+  </div>
+  <div id="decisionsOverview">
+    <div class="decisionsTop">
+      <div>
+        <h2>Decision Register</h2>
+        <div class="decisionsSubtitle">Registrul local de analiză pentru Branch-uri și NodeGroups candidate. Deciziile sunt separate de Arches și supraviețuiesc sincronizărilor.</div>
+      </div>
+    </div>
+    <div id="decisionStats" class="decisionStats"></div>
+    <div class="decisionTools">
+      <input id="decisionSearch" type="text" placeholder="Caută subiect, ID canonic, etichetă sau notă…">
+      <select id="decisionStatusFilter">
+        <option value="all">Toate statusurile</option>
+        <option value="review">De analizat</option>
+        <option value="candidate">Candidat</option>
+        <option value="canonical">Canonic</option>
+        <option value="decide">De decis</option>
+        <option value="rejected">Respins</option>
+      </select>
+    </div>
+    <div id="decisionScroll" class="decisionScroll"></div>
+  </div>
+  <div id="patternsOverview">
+    <div id="patternLibraryView" class="patternLibraryView">
+      <div class="libraryTop"><h2>Canonical Pattern Library</h2><div class="librarySubtitle">Pattern-uri ePatrimoniu candidate și canonice, legate de Branch-uri / NodeGroups, Mappings și Decisions.</div></div>
+      <div id="libraryStats" class="libraryStats"></div>
+      <div class="libraryTools"><input id="librarySearch" placeholder="Caută Pattern ID, nume, etichetă sau sursă…"><select id="libraryStatusFilter"><option value="all">Toate statusurile</option><option value="candidate">Candidat</option><option value="canonical">Canonic</option><option value="deprecated">Înlocuit</option><option value="rejected">Respins</option></select></div>
+      <div id="libraryValidationSummary" class="libraryValidationSummary"></div>
+      <div id="libraryScroll" class="libraryScroll"></div>
+    </div>
+
+    <div class="patternsTop">
+      <h2>Pattern Analysis</h2>
+      <div class="patternsSubtitle">Detectare structurală între Branch-uri și NodeGroups din Resource Models. Potrivirile sunt candidate de reutilizare / similaritate semantică, nu dovadă de proveniență.</div>
+      <div class="patternWarning">Important: un scor mare înseamnă că structurile seamănă după clase CIDOC CRM, datatype-uri și proprietăți. Nu înseamnă automat că acel Branch a fost inserat efectiv în Resource Model.</div>
+    </div>
+    <div id="patternStats" class="patternStats"></div>
+    <div id="patternScroll" class="patternScroll"></div>
+  </div>
+  <div id="workspaceOverview">
+    <div class="workspaceHero">
+      <div class="workspaceTop">
+        <div>
+          <h2>Workspace Overview</h2>
+          <div class="workspaceSubtitle">Inventarul vizual al Resource Models și Branches sincronizate din Arches. Click pe orice element pentru drill-down în graful semantic intern.</div>
+        </div>
+        
+      </div>
+      <div id="workspaceStats" class="workspaceStats"></div>
+      <div id="workspaceMaps"></div>
+      <div class="workspaceNote">Această hartă nu deduce relații de reutilizare între modele și Branches. Ea reprezintă inventarul și complexitatea grafurilor disponibile; analiza reutilizării structurale va fi un pas separat.</div>
+    </div>
+  </div>
+  <div class="searchbox">
+    <input id="graphSearch" placeholder="Caută nod, clasă sau proprietate CRM…">
+  </div>
+
+  <div id="leftContextStack" class="leftContextStack" aria-live="polite">
+    <div id="pathState" class="pathState" style="display:none"></div>
+    <div id="focusState" class="focusState" style="display:none"></div>
+    <div id="actionsMenuPopup" class="actionsMenuPopup" aria-hidden="true">
+      <div class="actionsMenuTitle">Acțiuni pentru selecția curentă</div>
+      <div id="actionsMenuItems" class="actionsMenuItems"></div>
+    </div>
+  </div>
+  <div class="toast" id="toast"></div>
+  <div id="comparePanel">
+    <div class="compareHead"><strong>Compară versiuni</strong><button id="compareClose" class="compareClose">×</button></div>
+    <div style="font-size:11px;color:#6b7280">Versiunea curentă vs. snapshot anterior:</div>
+    <select id="historySelect"></select>
+    <div class="compareActions"><button id="applyCompare">Compară</button><button id="clearCompare">Ieși din comparație</button></div>
+    <div id="compareSummary" class="compareSummary"></div>
+  </div>
+  <svg id="svg">
+    <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#8892a0"></path></marker></defs>
+    <g id="viewport"><g id="groups"></g><g id="edges"></g><g id="edgeLabels"></g><g id="nodes"></g></g>
+  </svg>
+  <div id="empty"><div class="emptyCard"><h2>Alege un model</h2><p>Modelele sincronizate apar automat în lista din stânga.</p></div></div>
+  <div class="help">Drag = pan · rotiță = zoom · click nod = detalii · Focus = vecinii direcți</div>
+</section>
+<aside id="side"><h2>Semantic Graph</h2><div class="crmTitle">Selectează un model și apoi un nod.</div><div class="kv"><div class="k">Workspace</div><div class="v" id="workspaceInfo">—</div></div></aside>
+</main>
+<input type="file" id="fileInput" accept=".json,.arches,*/*">
+
+
+
+
+
+
+<div id="collaborationModal" class="collaborationModal" aria-hidden="true">
+  <div class="collaborationBackdrop" data-collab-close="1"></div>
+  <div class="collaborationDialog" role="dialog" aria-modal="true" aria-labelledby="collaborationTitle">
+    <div class="collaborationHead">
+      <div><h2 id="collaborationTitle">Colaborare</h2><div class="collaborationSubtitle">Foundation local pentru viitorul workspace multi-user.</div></div>
+      <button id="collaborationClose" class="collaborationClose" type="button">×</button>
+    </div>
+    <div class="collaborationTabs">
+      <button id="collabProfileTab" class="collabTab active" type="button">Profil & workspace</button>
+      <button id="collabAuditTab" class="collabTab" type="button">Audit trail</button>
+    </div>
+    <div id="collabProfilePane" class="collabPane active">
+      <div class="collabNotice"><b>v1.10:</b> identitatea, rolurile, reviziile și auditul sunt reale local; backend-ul comun și sesiunile multi-user vin în etapa următoare.</div>
+      <label class="collabField"><span>Nume workspace</span><input id="collabWorkspaceName" type="text"></label>
+      <div class="collabGrid2">
+        <label class="collabField"><span>Numele utilizatorului</span><input id="collabDisplayName" type="text"></label>
+        <label class="collabField"><span>Rol</span><select id="collabRole"><option value="viewer">Viewer</option><option value="analyst">Analyst</option><option value="curator">Curator</option><option value="admin">Admin</option></select></label>
+      </div>
+      <div class="collabTechnical">
+        <div><span>Workspace ID</span><code id="collabWorkspaceId">—</code></div>
+        <div><span>Actor ID</span><code id="collabActorId">—</code></div>
+        <div><span>Backend</span><code>local-foundation</code></div>
+      </div>
+      <div class="collabPermissions"><b>Permisiuni efective:</b> <span id="collabPermissions">—</span></div>
+      <div class="collaborationActions"><div class="collabSpacer"></div><button id="collaborationCancel" type="button">Închide</button><button id="collaborationSave" type="button" class="collaborationSave">Salvează profilul</button></div>
+      <div id="collaborationStatus" class="collaborationStatus"></div>
+    </div>
+    <div id="collabAuditPane" class="collabPane">
+      <div class="auditToolbar"><div id="auditSummary">—</div><div><button id="auditRefresh" type="button">Reîmprospătează</button><button id="auditExport" type="button">Export CSV</button></div></div>
+      <div id="auditList" class="auditList"></div>
+    </div>
+  </div>
+</div>
+
+<div id="canonicalPatternModal" class="canonicalPatternModal" aria-hidden="true">
+  <div class="canonicalPatternBackdrop" data-pattern-close="1"></div>
+  <div class="canonicalPatternDialog">
+    <div class="canonicalPatternDialogHead"><div><h2>Pattern canonic</h2><div id="canonicalPatternTargetLabel" class="canonicalPatternModalSubtitle">—</div></div><button id="canonicalPatternClose" class="canonicalPatternClose">×</button></div>
+    <input type="hidden" id="canonicalPatternRecordId"><input type="hidden" id="canonicalPatternRevision">
+    <div class="patternEditorGrid2"><label class="patternEditorField"><span>Pattern ID *</span><input id="canonicalPatternId" placeholder="EP.BR.001"></label><label class="patternEditorField"><span>Status</span><select id="canonicalPatternStatus"><option value="candidate">Candidat</option><option value="canonical">Canonic</option><option value="deprecated">Înlocuit</option><option value="rejected">Respins</option></select></label></div>
+    <label class="patternEditorField"><span>Nume</span><input id="canonicalPatternName"></label>
+    <label class="patternEditorField"><span>Etichete</span><input id="canonicalPatternTags" placeholder="identifier, shared, provenance"></label>
+    <div class="canonicalPatternTargetCard"><div class="canonicalPatternTargetTitle">Sursă structurală</div><div id="canonicalPatternTargetSummary" class="canonicalPatternTargetSummary">Nicio sursă.</div><div class="canonicalPatternTargetActions"><button id="canonicalPatternUseCurrent" type="button">Folosește Branch / NodeGroup curent</button><button id="canonicalPatternClearTarget" type="button">Șterge sursa</button></div></div>
+    <label class="patternEditorField"><span>Descriere / criteriu de utilizare</span><textarea id="canonicalPatternDescription" rows="6"></textarea></label>
+    <label class="patternEditorField"><span>Notă de guvernanță</span><textarea id="canonicalPatternGovernance" rows="4"></textarea></label>
+    <div class="canonicalPatternDialogActions"><button id="canonicalPatternDelete" class="canonicalPatternDelete">Șterge</button><div class="canonicalPatternActionSpacer"></div><button id="canonicalPatternCancel">Renunță</button><button id="canonicalPatternSave" class="canonicalPatternSave">Salvează</button></div>
+    <div id="canonicalPatternSaveStatus" class="canonicalPatternSaveStatus"></div>
+  </div>
+</div>
+<div id="mappingModal" class="mappingModal" aria-hidden="true">
+  <div class="mappingBackdrop" data-mapping-close="1"></div>
+  <div class="mappingDialog" role="dialog" aria-modal="true" aria-labelledby="mappingModalTitle">
+    <div class="mappingDialogHead">
+      <div>
+        <h2 id="mappingModalTitle">Mapare câmp</h2>
+        <div id="mappingTargetLabel" class="mappingModalSubtitle">—</div>
+      </div>
+      <button id="mappingClose" class="mappingClose" type="button" aria-label="Închide">×</button>
+    </div>
+
+    <input type="hidden" id="mappingId">
+    <input type="hidden" id="mappingRevision">
+
+    <div class="mappingGrid2">
+      <label class="mappingField">
+        <span>Field ID *</span>
+        <input id="mappingFieldId" type="text" placeholder="ex. PI.IDENTIFICARE.COD_LMI">
+      </label>
+
+      <label class="mappingField">
+        <span>Status</span>
+        <select id="mappingStatus">
+          <option value="unmapped">De mapat</option>
+          <option value="draft">Ciornă</option>
+          <option value="review">De verificat</option>
+          <option value="approved">Aprobat</option>
+          <option value="decide">De decis</option>
+          <option value="rejected">Respins</option>
+        </select>
+      </label>
+    </div>
+
+    <label class="mappingField">
+      <span>Etichetă câmp</span>
+      <input id="mappingFieldLabel" type="text" placeholder="ex. Cod LMI">
+    </label>
+
+    <div class="mappingGrid2">
+      <label class="mappingField">
+        <span>Formular / domeniu</span>
+        <input id="mappingForm" type="text" placeholder="ex. Patrimoniu imobil">
+      </label>
+      <label class="mappingField">
+        <span>Secțiune</span>
+        <input id="mappingSection" type="text" placeholder="ex. Identificare">
+      </label>
+    </div>
+
+    <label class="mappingField">
+      <span>Sursă / referință formular</span>
+      <input id="mappingSource" type="text" placeholder="formular, foaie, autoritate etc.">
+    </label>
+
+    <div class="mappingGrid2">
+      <label class="mappingField">
+        <span>Pattern ID / Branch canonic</span>
+        <input id="mappingPatternId" type="text" list="canonicalPatternList" placeholder="ex. EP.BR.001">
+        <datalist id="canonicalPatternList"></datalist>
+      </label>
+
+      <label class="mappingField">
+        <span>Etichete</span>
+        <input id="mappingTags" type="text" placeholder="identifier, source, conditional…">
+      </label>
+    </div>
+
+    <div class="mappingTargetCard">
+      <div class="mappingTargetHead">
+        <div>
+          <div class="mappingTargetTitle">Țintă semantică</div>
+          <div id="mappingTargetSummary" class="mappingTargetSummary">Nicio țintă selectată.</div>
+        </div>
+        <div class="mappingTargetActions">
+          <button id="mappingUseCurrentNode" type="button">Folosește nodul curent</button>
+          <button id="mappingClearTarget" type="button">Șterge ținta</button>
+        </div>
+      </div>
+    </div>
+
+    <label class="mappingField">
+      <span>Justificare / argument semantic</span>
+      <textarea id="mappingJustification" rows="7" placeholder="De ce acest câmp este mapat aici? Ce alternativă a fost respinsă? Ce trebuie validat?"></textarea>
+    </label>
+
+    <div class="mappingDialogActions">
+      <button id="mappingDelete" type="button" class="mappingDelete">Șterge</button>
+      <div class="mappingActionSpacer"></div>
+      <button id="mappingCancel" type="button">Renunță</button>
+      <button id="mappingSave" type="button" class="mappingSave">Salvează</button>
+    </div>
+
+    <div id="mappingSaveStatus" class="mappingSaveStatus"></div>
+  </div>
+</div>
+
+<div id="decisionModal" class="decisionModal" aria-hidden="true">
+  <div class="decisionBackdrop" data-decision-close="1"></div>
+  <div class="decisionDialog" role="dialog" aria-modal="true" aria-labelledby="decisionModalTitle">
+    <div class="decisionDialogHead">
+      <div>
+        <h2 id="decisionModalTitle">Decizie</h2>
+        <div id="decisionTargetLabel" class="decisionModalSubtitle">—</div>
+      </div>
+      <button id="decisionClose" class="decisionClose" type="button" aria-label="Închide">×</button>
+    </div>
+
+    <input type="hidden" id="decisionKey">
+
+    <label class="decisionField">
+      <span>Status</span>
+      <select id="decisionStatus">
+        <option value="review">De analizat</option>
+        <option value="candidate">Candidat</option>
+        <option value="canonical">Canonic</option>
+        <option value="decide">De decis</option>
+        <option value="rejected">Respins</option>
+      </select>
+    </label>
+
+    <label class="decisionField">
+      <span>ID canonic / Pattern ID</span>
+      <input id="decisionCanonicalId" type="text" placeholder="ex. EP.BR.001">
+    </label>
+
+    <label class="decisionField">
+      <span>Etichete</span>
+      <input id="decisionTags" type="text" placeholder="ex. appellation, identifier, shared">
+    </label>
+
+    <label class="decisionField">
+      <span>Argument / notă de analiză</span>
+      <textarea id="decisionNote" rows="7" placeholder="De ce este candidat? Ce trebuie verificat? Ce decizie a fost luată?"></textarea>
+    </label>
+
+    <div class="decisionDialogActions">
+      <button id="decisionDelete" type="button" class="decisionDelete">Șterge</button>
+      <div class="decisionActionSpacer"></div>
+      <button id="decisionCancel" type="button">Renunță</button>
+      <button id="decisionSave" type="button" class="decisionSave">Salvează</button>
+    </div>
+    <div id="decisionSaveStatus" class="decisionSaveStatus"></div>
+  </div>
+</div>
+
+<div id="syncModal" class="syncModal" aria-hidden="true">
+  <div class="syncBackdrop" data-sync-close="1"></div>
+  <div class="syncDialog" role="dialog" aria-modal="true" aria-labelledby="syncTitle">
+    <div class="syncDialogHead">
+      <div>
+        <h2 id="syncTitle">Sync from Arches</h2>
+        <div class="syncSubtitle">Alege ce vrei să actualizezi acum.</div>
+      </div>
+      <button id="syncClose" class="syncClose" type="button" aria-label="Închide">×</button>
+    </div>
+
+    <div id="syncStatusBox" class="syncStatusBox" style="display:none"></div>
+
+    <div class="syncQuickGrid">
+      <button type="button" class="syncChoice" data-sync-mode="configured">
+        <strong>Workspace configurat</strong>
+        <span>Rulează scope-ul salvat pentru pornirea normală.</span>
+      </button>
+
+      <button type="button" class="syncChoice" data-sync-mode="resources">
+        <strong>Toate Resource Models</strong>
+        <span>Actualizează toate modelele de resurse, fără a elimina Branch-urile locale.</span>
+      </button>
+
+      <button type="button" class="syncChoice" data-sync-mode="current" id="syncCurrentChoice">
+        <strong>Graful curent</strong>
+        <span id="syncCurrentLabel">Deschide un graf pentru această opțiune.</span>
+      </button>
+
+      <button type="button" class="syncChoice" data-sync-mode="selected">
+        <strong>Alege din catalog</strong>
+        <span>Selectează manual unul sau mai multe Resource Models / Branches.</span>
+      </button>
+    </div>
+
+    <div id="syncCatalogArea" class="syncCatalogArea" style="display:none">
+      <div class="syncCatalogTools">
+        <input id="syncCatalogSearch" type="text" placeholder="Caută după nume sau Graph ID…">
+        <select id="syncCatalogType">
+          <option value="all">Toate</option>
+          <option value="resource">Resource Models</option>
+          <option value="branch">Branches</option>
+        </select>
+      </div>
+      <div id="syncCatalogList" class="syncCatalogList"></div>
+      <div class="syncCatalogFooter">
+        <span id="syncCatalogCount">0 selectate</span>
+        <button type="button" id="syncSelectedNow">Sync selecția</button>
+      </div>
+    </div>
+
+    <label class="syncPersist">
+      <input type="checkbox" id="syncPersistChoice">
+      Folosește alegerea și ca scope implicit la pornirile următoare
+    </label>
+
+    <div class="syncFoot">Sync-ul rulează prin serviciul local al aplicației. Viewer-ul rămâne read-only față de Arches.</div>
+  </div>
+</div>
+
+<div id="exportModal" class="exportModal" aria-hidden="true">
+  <div class="exportBackdrop" data-export-close="1"></div>
+  <div class="exportDialog" role="dialog" aria-modal="true" aria-labelledby="exportTitle">
+    <div class="exportDialogHead">
+      <div>
+        <h2 id="exportTitle">Export</h2>
+        <div id="exportSubtitle" class="exportSubtitle">Alege formatul de export.</div>
+      </div>
+      <button id="exportClose" class="exportClose" type="button" aria-label="Închide">×</button>
+    </div>
+    <div id="exportOptions" class="exportOptions"></div>
+    <div class="exportFoot">Fișierele sunt generate local în browser. Viewer-ul rămâne read-only față de Arches.</div>
+  </div>
+</div>
+
+<script src="viewer-app.js"></script>
+</body>
+</html>
